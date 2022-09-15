@@ -12,8 +12,8 @@ FRICTION = 0.9
 
 NUM_RESOLVE_STEPS = 8
 
-N_COLS = 50
-N_ROWS = 50
+N_COLS = 30
+N_ROWS = 30
 
 SIZE = 100
 
@@ -80,12 +80,15 @@ def motion_rigidsticks(points):
             stick.p_b.pos += offset/2
 
 fig = plt.figure()
-# ax = mpl_toolkits.mplot3d.axes3d.Axes3D(fig)
-# ax = fig.add_subplot(projection='3d')
-ax = fig.add_subplot(111, projection='3d')
-# plot_x, plot_y, plot_z = [], [], []
-# sc = ax.scatter(plot_x, plot_y, plot_z)
+ax = fig.add_subplot(121, projection='3d')
 sc = ax.scatter([], [], [])
+line_ax = fig.add_subplot(122)
+max_vel_data = []
+avg_vel_data = []
+max_vel_line, = line_ax.plot([], [], label="maximum velocity")
+avg_vel_line, = line_ax.plot([], [], label="average velocity")
+line_ax.set_xlabel('iterations')
+line_ax.legend()
 
 def animate(i):
     motion_kinematics(points)
@@ -93,12 +96,24 @@ def animate(i):
     for _ in range(NUM_RESOLVE_STEPS):
         motion_rigidsticks(points)
 
+
     plot_x = [p.pos[0] for p in points]
     plot_y = [p.pos[1] for p in points]
     plot_z = [p.pos[2] for p in points]
     # sc.set_offsets(np.c_[plot_x, plot_y, plot_z])
     sc._offsets3d = (plot_x, plot_y, plot_z) # https://stackoverflow.com/a/41609238
-    print('animed', plot_z)
+
+    # tracking line chart
+    vels = [np.linalg.norm(p.pos - p.old_pos) for p in points]
+    max_vel_data.append(max(vels))
+    avg_vel_data.append(sum(vels)/len(vels))
+    max_vel_line.set_ydata(max_vel_data)
+    max_vel_line.set_xdata(range(len(max_vel_data)))
+    avg_vel_line.set_ydata(avg_vel_data)
+    avg_vel_line.set_xdata(range(len(avg_vel_data)))
+    line_ax.set_xlim(0, len(avg_vel_data))
+    y_scale = max(max_vel_data)
+    line_ax.set_ylim(-0.2*y_scale, 1.2*y_scale)
 
 if __name__ == '__main__':
 
@@ -114,11 +129,16 @@ if __name__ == '__main__':
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
+    line_ax.set_ylim(0, 3)
+    # line_ax.set_yscale('log')
+
     ani = matplotlib.animation.FuncAnimation(fig, animate,
                 frames=60, interval=100, blit=False)
 
 
     plt.show()
+
+    print("shape confirmed. exporting to stl...")
 
 
 # # Define the 8 vertices of the cube
