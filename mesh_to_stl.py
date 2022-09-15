@@ -7,41 +7,79 @@ import matplotlib.animation
 
 from dataclasses import dataclass
 
+GRAVITY = np.array([0, -0.1])
+FRICTION = 0.9999
+
 @dataclass
 class Point:
     pos: np.ndarray
     old_pos: np.ndarray
 
+@dataclass
+class Stick:
+    p_a: Point
+    p_b: Point
+    len: float
+
+def distance(p1: Point, p2: Point):
+    return np.linalg.norm(p1.pos - p2.pos)
 
 points = [
-    Point(pos=np.array([x, y]), old_pos=np.array([x+0.1, y+0.1]))
-    for x in np.linspace(0, 10, 11) for y in np.linspace(0, 10, 11) ]
+    Point(pos=np.array([x, y]), old_pos=np.array([x, y]))
+    for x in np.linspace(-10, 1, 12) for y in np.linspace(-10, 1, 12) ]
 
-def update_points(points):
+pinned_points = [ x for x in points if x.pos[1] > 0.5 ]
+
+sticks = [
+    Stick(p_a=points[0], p_b=points[-1], len=distance(points[0], points[-1]))
+        ]
+
+def motion_kinematics(points):
     for p in points:
-        p.pos += 0.1
+        # print(p.pos, p.old_pos)
+        vel = p.pos - p.old_pos
+        p.old_pos = p.pos.copy()
+        p.pos += vel * FRICTION
+        if p.pos[1] <= 0:
+            p.pos += GRAVITY
 
+def motion_rigidsticks(points):
+    for stick in sticks:
+        # just straight up moves points towards/away from each other
+        # as per https://www.youtube.com/watch?v=pBMivz4rIJY
+        point_offset = stick.p_b.pos - stick.p_a.pos
+        point_distance = np.linalg.norm(point_offset)
+        offset = point_offset * (stick.len - point_distance)/point_distance/2
 
+        print(point_offset, point_distance, offset)
+
+        stick.p_a.pos -= offset
+        stick.p_b.pos += offset
+
+def motion_pinned(points):
+    for p in pinned_points:
+        p.pos = p.old_pos
 
 plot_x, plot_y = [], []
 def animate(i):
-    update_points(points)
+    motion_kinematics(points)
+    motion_rigidsticks(points)
+    motion_pinned(points)
     global plot_x, plot_y
-    # plot_x.append(np.random.random()*10)
-    # plot_y.append(np.random.random()*10)
     plot_x = [p.pos[0] for p in points]
     plot_y = [p.pos[1] for p in points]
     sc.set_offsets(np.c_[plot_x, plot_y])
-    print(i, plot_x, plot_y)
+    # input()
+    # print(i, plot_x, plot_y)
 
 if __name__ == '__main__':
     fig, ax = plt.subplots()
     sc = ax.scatter(plot_x, plot_y)
-    plt.xlim(-5,15)
-    plt.ylim(-5,15)
+    plt.xlim(-15, 5)
+    plt.ylim(-15, 5)
 
     ani = matplotlib.animation.FuncAnimation(fig, animate,
-                frames=100, interval=100, repeat=True)
+                frames=60, interval=100, repeat=True)
     plt.show()
 #
 # def render_points(points):
