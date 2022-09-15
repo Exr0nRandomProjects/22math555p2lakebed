@@ -7,13 +7,15 @@ import matplotlib.animation
 
 from dataclasses import dataclass
 
-GRAVITY = np.array([0, -0.1])
-FRICTION = 0.9999
+GRAVITY = np.array([0, 0, -0.1])
+FRICTION = 0.9
 
 NUM_RESOLVE_STEPS = 8
 
-N_COLS = 12
-N_ROWS = 12
+N_COLS = 50
+N_ROWS = 50
+
+SIZE = 100
 
 @dataclass
 class Point:
@@ -31,11 +33,12 @@ def distance(p1: Point, p2: Point):
     return np.linalg.norm(p1.pos - p2.pos)
 
 points = [
-    Point(pos=np.array([x, y]), old_pos=np.array([x, y]), pinned=False)
-    for x in np.linspace(-10, 1, N_COLS) for y in np.linspace(-10, 1, N_ROWS) ]
+    Point(pos=np.array([x, y, 0]), old_pos=np.array([x, y, 0]), pinned=False)
+    for x in np.linspace(0, SIZE, N_COLS) for y in np.linspace(0, SIZE, N_ROWS) ]
 
 for i, p in enumerate(points):
-    if i % N_ROWS == N_ROWS-1 and np.random.random() < 0.3:
+    # if i % N_ROWS == N_ROWS-1 and np.random.random() < 0.3:
+    if p.pos[0] == 0 or p.pos[0] == SIZE or p.pos[1] == 0 or p.pos[1] == SIZE:
         p.pinned = True
 
 def make_stick_from_indicies(c1, r1, c2, r2):
@@ -54,8 +57,8 @@ def motion_kinematics(points):
         p.old_pos = p.pos.copy()
         p.pos += vel * FRICTION
         p.pos += GRAVITY
-        if i == 0:  # pull the bottom left point away to check that side connections exist
-            p.pos += np.array([-0.7, 0.0])
+        # if i == 0:  # pull the bottom left point away to check that side connections exist
+        #     p.pos += np.array([-0.7, 0.0])
 
 def motion_rigidsticks(points):
     for stick in sticks:
@@ -76,80 +79,79 @@ def motion_rigidsticks(points):
             stick.p_a.pos -= offset/2
             stick.p_b.pos += offset/2
 
-# def motion_pinned(points):
-#     for p in pinned_points:
-#         p.pos = p.old_pos.copy()
+fig = plt.figure()
+# ax = mpl_toolkits.mplot3d.axes3d.Axes3D(fig)
+# ax = fig.add_subplot(projection='3d')
+ax = fig.add_subplot(111, projection='3d')
+# plot_x, plot_y, plot_z = [], [], []
+# sc = ax.scatter(plot_x, plot_y, plot_z)
+sc = ax.scatter([], [], [])
 
-plot_x, plot_y = [], []
 def animate(i):
     motion_kinematics(points)
     # resolution handlers
     for _ in range(NUM_RESOLVE_STEPS):
         motion_rigidsticks(points)
-    # motion_pinned(points)
-    global plot_x, plot_y
+
     plot_x = [p.pos[0] for p in points]
     plot_y = [p.pos[1] for p in points]
-    sc.set_offsets(np.c_[plot_x, plot_y])
-    # input()
-    # print(i, plot_x, plot_y)
+    plot_z = [p.pos[2] for p in points]
+    # sc.set_offsets(np.c_[plot_x, plot_y, plot_z])
+    sc._offsets3d = (plot_x, plot_y, plot_z) # https://stackoverflow.com/a/41609238
+    print('animed', plot_z)
 
 if __name__ == '__main__':
-    fig, ax = plt.subplots()
-    sc = ax.scatter(plot_x, plot_y)
-    plt.xlim(-15, 5)
-    plt.ylim(-15, 5)
+
+
+    # plot_x = [p.pos[0] for p in points]
+    # plot_y = [p.pos[1] for p in points]
+    # plot_z = [p.pos[2] for p in points]
+
+    ax.set_xlim3d([-SIZE*0.2, SIZE*1.2])
+    ax.set_ylim3d([-SIZE*0.2, SIZE*1.2])
+    ax.set_zlim3d([-30, 5])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
 
     ani = matplotlib.animation.FuncAnimation(fig, animate,
-                frames=60, interval=100, repeat=True)
+                frames=60, interval=100, blit=False)
+
+
     plt.show()
+
+
+# # Define the 8 vertices of the cube
+# vertices = np.array([\
+#     [-1, -1, -1],
+#     [+1, -1, -1],
+#     [+1, +1, -1],
+#     [-1, +1, -1],
+#     [-1, -1, +1],
+#     [+1, -1, +1],
+#     [+1, +1, +1],
+#     [-1, +1, +1]])
+# # Define the 12 triangles composing the cube
+# faces = np.array([\
+#     [0,3,1],
+#     [1,3,2],
+#     [0,4,7],
+#     [0,7,3],
+#     [4,5,6],
+#     [4,6,7],
+#     [5,1,2],
+#     [5,2,6],
+#     [2,3,6],
+#     [3,7,6],
+#     [0,1,5],
+#     [0,5,4]])
 #
-# def render_points(points):
-#     hl.set_aa()
-#     # hl.set_xdata([p.pos[0] for p in points])
-#     # hl.set_ydata([p.pos[1] for p in points])
-#     plt.draw()
+# # Create the mesh
+# cube = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+# for i, f in enumerate(faces):
+#     for j in range(3):
+#         cube.vectors[i][j] = vertices[f[j],:]
 #
-# if __name__ == '__main__':
+# # Write the mesh to file "cube.stl"
+# cube.save('cube.stl')
 #
-#
-#     for step in range(int(1e5)):
-#         update_points(points)
-#         render_points(points)
-
-
-
-# Define the 8 vertices of the cube
-vertices = np.array([\
-    [-1, -1, -1],
-    [+1, -1, -1],
-    [+1, +1, -1],
-    [-1, +1, -1],
-    [-1, -1, +1],
-    [+1, -1, +1],
-    [+1, +1, +1],
-    [-1, +1, +1]])
-# Define the 12 triangles composing the cube
-faces = np.array([\
-    [0,3,1],
-    [1,3,2],
-    [0,4,7],
-    [0,7,3],
-    [4,5,6],
-    [4,6,7],
-    [5,1,2],
-    [5,2,6],
-    [2,3,6],
-    [3,7,6],
-    [0,1,5],
-    [0,5,4]])
-
-# Create the mesh
-cube = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
-for i, f in enumerate(faces):
-    for j in range(3):
-        cube.vectors[i][j] = vertices[f[j],:]
-
-# Write the mesh to file "cube.stl"
-cube.save('cube.stl')
-
