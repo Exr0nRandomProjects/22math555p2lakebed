@@ -8,7 +8,7 @@ import matplotlib.animation
 from dataclasses import dataclass
 
 GRAVITY = np.array([0, 0, -0.1])
-FRICTION = 0.9
+FRICTION = 0.99
 
 NUM_RESOLVE_STEPS = 8
 
@@ -29,36 +29,37 @@ class Stick:
     p_b: Point
     len: float
 
-def distance(p1: Point, p2: Point):
-    return np.linalg.norm(p1.pos - p2.pos)
 
 points = [
     Point(pos=np.array([x, y, 0]), old_pos=np.array([x, y, 0]), pinned=False)
     for x in np.linspace(0, SIZE, N_COLS) for y in np.linspace(0, SIZE, N_ROWS) ]
 
+# pin some points
 for i, p in enumerate(points):
-    # if i % N_ROWS == N_ROWS-1 and np.random.random() < 0.3:
     if p.pos[0] == 0 or p.pos[0] == SIZE or p.pos[1] == 0 or p.pos[1] == SIZE:
         p.pinned = True
 
+
+# make the sticks between adjacent points
+def distance(p1: Point, p2: Point):
+    return np.linalg.norm(p1.pos - p2.pos)
 def make_stick_from_indicies(c1, r1, c2, r2):
     p1 = points[c1*N_ROWS + r1]
     p2 = points[c2*N_ROWS + r2]
     return Stick(p_a=p1, p_b=p2, len=distance(p1, p2))
 
+
 sticks = [ make_stick_from_indicies(c, r, c+1, r) for c in range(N_COLS-1) for r in range(N_ROWS) ] \
         + [ make_stick_from_indicies(c, r, c, r+1) for c in range(N_COLS) for r in range(N_ROWS-1)  ]
+
 
 def motion_kinematics(points):
     for i, p in enumerate(points):
         if p.pinned: continue
-        # print(p.pos, p.old_pos)
         vel = p.pos - p.old_pos
         p.old_pos = p.pos.copy()
         p.pos += vel * FRICTION
         p.pos += GRAVITY
-        # if i == 0:  # pull the bottom left point away to check that side connections exist
-        #     p.pos += np.array([-0.7, 0.0])
 
 def motion_rigidsticks(points):
     for stick in sticks:
@@ -68,8 +69,6 @@ def motion_rigidsticks(points):
         point_offset = stick.p_b.pos - stick.p_a.pos
         point_distance = np.linalg.norm(point_offset)
         offset = point_offset * (stick.len - point_distance)/point_distance
-
-        # print(point_offset, point_distance, offset)
 
         if stick.p_a.pinned:
             stick.p_b.pos += offset
@@ -96,14 +95,14 @@ def animate(i):
     for _ in range(NUM_RESOLVE_STEPS):
         motion_rigidsticks(points)
 
-
+    # update scatter plot
     plot_x = [p.pos[0] for p in points]
     plot_y = [p.pos[1] for p in points]
     plot_z = [p.pos[2] for p in points]
-    # sc.set_offsets(np.c_[plot_x, plot_y, plot_z])
+    # sc.set_offsets(np.c_[plot_x, plot_y, plot_z]) # for 2d scatter
     sc._offsets3d = (plot_x, plot_y, plot_z) # https://stackoverflow.com/a/41609238
 
-    # tracking line chart
+    # update tracking line chart
     vels = [np.linalg.norm(p.pos - p.old_pos) for p in points]
     max_vel_data.append(max(vels))
     avg_vel_data.append(sum(vels)/len(vels))
@@ -116,12 +115,6 @@ def animate(i):
     line_ax.set_ylim(-0.2*y_scale, 1.2*y_scale)
 
 if __name__ == '__main__':
-
-
-    # plot_x = [p.pos[0] for p in points]
-    # plot_y = [p.pos[1] for p in points]
-    # plot_z = [p.pos[2] for p in points]
-
     ax.set_xlim3d([-SIZE*0.2, SIZE*1.2])
     ax.set_ylim3d([-SIZE*0.2, SIZE*1.2])
     ax.set_zlim3d([-30, 5])
@@ -129,12 +122,8 @@ if __name__ == '__main__':
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-    line_ax.set_ylim(0, 3)
-    # line_ax.set_yscale('log')
-
     ani = matplotlib.animation.FuncAnimation(fig, animate,
                 frames=60, interval=100, blit=False)
-
 
     plt.show()
 
