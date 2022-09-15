@@ -7,13 +7,13 @@ import matplotlib.animation
 
 from dataclasses import dataclass
 
-GRAVITY = np.array([0, 0, -0.1])
-FRICTION = 0.99
+GRAVITY = np.array([0, 0, -0.9])
+FRICTION = 0.8
 
 NUM_RESOLVE_STEPS = 8
 
-N_COLS = 30
-N_ROWS = 30
+N_COLS = 15
+N_ROWS = 15
 
 SIZE = 100
 
@@ -129,6 +129,28 @@ if __name__ == '__main__':
 
     print("shape confirmed. exporting to stl...")
 
+    vertices = np.array([[p.pos[0], p.pos[2], p.pos[1]] for p in points])
+    # so how are we gonna trianglify the grid?
+    # well, each point just has to worry about the two triangles it's the right angle of
+    #      2
+    #      |\
+    #      | \
+    #      |  \
+    #      |   \
+    # 1----0----1
+    #  \   |
+    #   \  |
+    #    \ |
+    #     \|
+    #      2
+    # so we can loop through each point twice, and have it do it's upper right / lower left triangle if it's far enough away from the edge
+    faces = np.array(
+        [ [c*N_ROWS+r, (c+1)*N_ROWS+r, c*N_ROWS+r+1]            # top right
+        for c in range(N_COLS-1) for r in range(N_ROWS-1) ] +
+        [ [c*N_ROWS+r, (c-1)*N_ROWS+r, c*N_ROWS+r-1]            # bottom left
+        for c in range(1, N_COLS) for r in range(1, N_ROWS) ]
+    )
+    print(faces)
 
 # # Define the 8 vertices of the cube
 # vertices = np.array([\
@@ -155,12 +177,12 @@ if __name__ == '__main__':
 #     [0,1,5],
 #     [0,5,4]])
 #
-# # Create the mesh
-# cube = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
-# for i, f in enumerate(faces):
-#     for j in range(3):
-#         cube.vectors[i][j] = vertices[f[j],:]
-#
-# # Write the mesh to file "cube.stl"
-# cube.save('cube.stl')
-#
+# Create the mesh
+    cube = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+    for i, f in enumerate(faces):
+        for j in range(3):
+            cube.vectors[i][j] = vertices[f[j],:]
+
+# Write the mesh to file "cube.stl"
+    cube.save('lakebed.stl')
+
