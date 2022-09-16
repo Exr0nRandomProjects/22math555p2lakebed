@@ -17,6 +17,7 @@ class Point:
     old_pos: np.ndarray
     pinned: bool
 spec_Point = [('pos', nb.float64[:]), ('old_pos', nb.float64[:]), ('pinned', nb.bool_)]
+# from https://github.com/numba/numba/issues/4037#issuecomment-907523015
 del Point.__dataclass_params__  # type: ignore
 del Point.__dataclass_fields__  # type: ignore
 del Point.__match_args__  # type: ignore
@@ -28,6 +29,11 @@ class ChargeLine:
     points: List[Point]
     depth: float
     charge: float
+spec_ChargeLine = [('points', List[Point]), ('depth', nb.float64), ('charge', nb.float64)]
+del ChargeLine.__dataclass_params__  # type: ignore
+del ChargeLine.__dataclass_fields__  # type: ignore
+del ChargeLine.__match_args__  # type: ignore
+ChargeLine = nb.experimental.jitclass(spec_ChargeLine)(ChargeLine)  # type: ignore
 
 charge_of_depth = lambda x: 0.01*(x-25)**2 + 7
 def distance(p1: Point, p2: Point):
