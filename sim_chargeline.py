@@ -6,6 +6,8 @@ from numba import njit, vectorize
 from numba.typed import List
 import numba as nb
 
+from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges
+
 from itertools import combinations, product
 from dataclasses import dataclass
 import math
@@ -16,6 +18,8 @@ class Point:
     old_pos: np.ndarray
     tot_vel: nb.float64
     pinned: bool
+    def __repr__(self):
+        return f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"
 spec_Point = [('pos', nb.float64[:]), ('old_pos', nb.float64[:]), ('tot_vel', nb.float64), ('pinned', nb.bool_)]
 # from https://github.com/numba/numba/issues/4037#issuecomment-907523015
 del Point.__dataclass_params__  # type: ignore
@@ -29,20 +33,22 @@ class ChargeLine:
     points: List[Point]
     depth: float
     charge: float
+    def __repr__(self):
+        return str(self.points)
 
-charge_of_depth = lambda x: 0.01*(x-25)**2 + 7
+# charge_of_depth = lambda x: 0.01*(x-25)**2 + 7
 
 # @vectorize([float64(Point, Point)])
 @njit
 def distance(p1: Point, p2: Point):
     return np.linalg.norm(p1.old_pos - p2.old_pos)
 @njit
-def inter_line_charge(c, d): return 0.0001 * c / d**4
-@njit
-def intra_line_charge(c, d): return c/1.5**d
+def inter_line_charge(c, d): return 1 * c / max(d, 10)**2
+# @njit
+# def intra_line_charge(c, d): return c/1.5**d
 
 STRAIGHTNESS_FORCE = 0.01
-CHARGE_FORCE_MAX = 0.1
+CHARGE_FORCE_MAX = 100
 
 plt.style.use('dark_background')
 
@@ -54,17 +60,25 @@ def windowed(iterable, n):
 def new_Point(x, y, pinned=False):
     return Point(pos=np.array([x, y]), old_pos=np.array([x, y]), tot_vel=0, pinned=pinned)
 
-INITIAL_CHARGE_LINES = [    # constant
-    ChargeLine(points=List([new_Point(18*math.cos(t), 15*math.sin(t), pinned=True) for t in np.linspace(0, 2*math.pi, 100)]), depth=0, charge=0.5),
-    ChargeLine(points=List([new_Point(15*math.cos(t), 12*math.sin(t)) for t in np.linspace(0, 2*math.pi, 100)]), depth=1, charge=1),
-    ChargeLine(points=List([new_Point(14*math.cos(t), 11*math.sin(t)) for t in np.linspace(0, 2*math.pi, 100)]), depth=1, charge=1.5),
-    ChargeLine(points=List([new_Point(12*math.cos(t), 10*math.sin(t)) for t in np.linspace(0, 2*math.pi, 80)]), depth=2, charge=2),
-    ChargeLine(points=List([new_Point(9*math.cos(t), 9*math.sin(t)) for t in np.linspace(0, 2*math.pi, 80)]), depth=3, charge=1.5),
-    ChargeLine(points=List([new_Point(8*math.cos(t), 8.5*math.sin(t)) for t in np.linspace(0, 2*math.pi, 60)]), depth=3, charge=1),
-    ChargeLine(points=List([new_Point(3*math.cos(t), 8*math.sin(t), pinned=True) for t in np.linspace(0, 2*math.pi, 30)]), depth=4, charge=1),
+# INITIAL_CHARGE_LINES = [    # constant
+#     ChargeLine(points=List([new_Point(400*math.cos(t), 300*math.sin(t), pinned=True) for t in np.linspace(0, 2*math.pi, 100)]), depth=0, charge=0.5),
+#     ChargeLine(points=List([new_Point(375*math.cos(t), 275*math.sin(t)) for t in np.linspace(0, 2*math.pi, 100)]), depth=1, charge=1),
+#     ChargeLine(points=List([new_Point(350*math.cos(t), 250*math.sin(t)) for t in np.linspace(0, 2*math.pi, 100)]), depth=1, charge=1.5),
+#     ChargeLine(points=List([new_Point(325*math.cos(t), 225*math.sin(t)) for t in np.linspace(0, 2*math.pi, 80)]), depth=2, charge=2),
+#     ChargeLine(points=List([new_Point(275*math.cos(t), 200*math.sin(t)) for t in np.linspace(0, 2*math.pi, 80)]), depth=3, charge=1.5),
+#     ChargeLine(points=List([new_Point(200*math.cos(t), 180*math.sin(t)) for t in np.linspace(0, 2*math.pi, 60)]), depth=3, charge=1),
+#     ChargeLine(points=List([new_Point(100*math.cos(t), 150*math.sin(t), pinned=True) for t in np.linspace(0, 2*math.pi, 30)]), depth=4, charge=1),
+# ]
+
+
+INITIAL_CHARGE_LINES = [
+        ChargeLine(List([new_Point(x, y, pinned=(i == 0)) for x, y in line]), depth, charge) for i, (line, depth, charge) in enumerate(zip(data_lines, data_depth, data_charges))
 ]
 
-FRICTION = 0.7
+for line in INITIAL_CHARGE_LINES:
+    print([(int(p.pos[0]), int(p.pos[1])) for p in line.points])
+
+FRICTION = 0.9
 
 def update_points_verlet(charge_lines):
     def kinematics(charge_lines: List[ChargeLine]):
@@ -97,26 +111,27 @@ def update_points_verlet(charge_lines):
                     if not p2.pinned:
                         p2.pos -= force * direction; p2.tot_vel += np.linalg.norm(force * direction)
 
-        @njit
-        def intra_line_force(points, charge):
-            for i, p1 in enumerate(points):
-                for p2 in points[i:]:
-                    if p1 is p2 or (p1.pinned and p2.pinned): continue
-                    direction = p2.old_pos - p1.old_pos
-                    direction /= np.linalg.norm(direction)
-
-                    force = intra_line_charge(charge, distance(p1, p2))
-                    force = min(force, CHARGE_FORCE_MAX)
-
-                    if not p1.pinned:
-                        p1.pos -= force * direction; p1.tot_vel += np.linalg.norm(force * direction)
-                    if not p2.pinned:
-                        p2.pos -= force * direction; p2.tot_vel += np.linalg.norm(force * direction)
-
+        # @njit
+        # def intra_line_force(points, charge):
+        #     for i, p1 in enumerate(points):
+        #         for j, p2 in enumerate(points[i:]):
+        #             if i == j or (p1.pinned and p2.pinned): continue
+        #             direction = p2.old_pos - p1.old_pos
+        #             direction /= np.linalg.norm(direction)
+        #
+        #             force = intra_line_charge(charge, distance(p1, p2))
+        #             force = min(force, CHARGE_FORCE_MAX)
+        #
+        #             if not p1.pinned:
+        #                 p1.pos -= force * direction; p1.tot_vel += np.linalg.norm(force * direction)
+        #             if not p2.pinned:
+        #                 p2.pos -= force * direction; p2.tot_vel += np.linalg.norm(force * direction)
+        #
 
         for i, cl_a in enumerate(charge_lines):
             for cl_b in charge_lines[i+1:]:
                 op(cl_a.points, cl_b.points, cl_a.charge * cl_b.charge)
+                # intra_line_force(cl_a.points, cl_a.charge **2)
 
     def straightness_force(charge_lines):
         @njit
@@ -145,7 +160,6 @@ def update_points_verlet(charge_lines):
 
     kinematics(charge_lines)
     charge_force(charge_lines)
-    intra_line_fo
     straightness_force(charge_lines)
     # print(charge_lines)
 
@@ -191,8 +205,8 @@ if __name__ == '__main__':
     plt_curves = [ vis_ax.plot([], [], marker='o', label=f"{cl.depth}: {cl.charge}")[0] for cl in INITIAL_CHARGE_LINES ]
     vis_ax.legend()
 
-    vis_ax.set_xlim(-20, 20)
-    vis_ax.set_ylim(-18, 18)
+    vis_ax.set_xlim(-10, 600)
+    vis_ax.set_ylim(-10, 500)
 
     ani = FuncAnimation(fig, animate, fargs=[plt_curves, INITIAL_CHARGE_LINES], frames=trange(int(1e5)), interval=100, blit=False)
 
