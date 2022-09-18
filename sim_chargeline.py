@@ -48,7 +48,7 @@ def inter_line_charge(c, d): return 3 * c / max(d, 1)**2
 # @njit
 # def intra_line_charge(c, d): return c/1.5**d
 
-STRAIGHTNESS_FORCE = 0.4
+STRAIGHTNESS_FORCE = 0.2
 CHARGE_FORCE_MAX = 100
 
 plt.style.use('dark_background')
@@ -136,11 +136,11 @@ def update_points_verlet(charge_lines):
             v2 = r.old_pos - c.old_pos
             delta = STRAIGHTNESS_FORCE * (v1+v2)
 
-            c.pos += delta; c.tot_vel += np.linalg.norm(delta)
+            c.pos += delta*1/3; c.tot_vel += np.linalg.norm(delta)
             if not l.pinned:
-                l.pos -= delta/2; l.tot_vel += np.linalg.norm(delta/2)
+                l.pos -= delta/6; l.tot_vel += np.linalg.norm(delta/2)
             if not r.pinned:
-                r.pos -= delta/2; r.tot_vel += np.linalg.norm(delta/2)
+                r.pos -= delta/6; r.tot_vel += np.linalg.norm(delta/2)
 
         @njit
         def op(points):
