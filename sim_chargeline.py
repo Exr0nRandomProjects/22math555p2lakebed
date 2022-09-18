@@ -98,7 +98,7 @@ def update_points_verlet(charge_lines):
                         p2.pos -= force * direction; p2.tot_vel += np.linalg.norm(force * direction)
 
         @njit
-        def intra_line(points, charge):
+        def intra_line_force(points, charge):
             for i, p1 in enumerate(points):
                 for p2 in points[i:]:
                     if p1 is p2 or (p1.pinned and p2.pinned): continue
@@ -145,6 +145,7 @@ def update_points_verlet(charge_lines):
 
     kinematics(charge_lines)
     charge_force(charge_lines)
+    intra_line_fo
     straightness_force(charge_lines)
     # print(charge_lines)
 
