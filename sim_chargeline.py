@@ -6,7 +6,7 @@ from numba import njit, vectorize
 from numba.typed import List
 import numba as nb
 
-from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges, lines_sequences
+from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges, lines_sequences, points_to_pin
 
 from itertools import combinations, product
 from dataclasses import dataclass
@@ -48,7 +48,7 @@ def inter_line_charge(c, d): return 3 * c / max(d, 1)**2
 # @njit
 # def intra_line_charge(c, d): return c/1.5**d
 
-STRAIGHTNESS_FORCE = 0.1
+STRAIGHTNESS_FORCE = 0.4
 CHARGE_FORCE_MAX = 100
 
 plt.style.use('dark_background')
@@ -62,7 +62,7 @@ def new_Point(x, y, pinned=False):
     return Point(pos=np.array([x, y]), old_pos=np.array([x, y]), tot_vel=0, pinned=pinned)
 
 INITIAL_CHARGE_LINES = [
-        ChargeLine(List([new_Point(x, y, pinned=(i == 0)) for x, y in line]), depth, charge) for i, (line, depth, charge) in enumerate(zip(data_lines, data_depth, data_charges))
+        ChargeLine(List([new_Point(x, y, pinned=(i == 0 or (i, j) in points_to_pin)) for j, (x, y) in enumerate(line)]), depth, charge) for i, (line, depth, charge) in enumerate(zip(data_lines, data_depth, data_charges))
 ]
 
 print([len(line.points) for line in INITIAL_CHARGE_LINES])
