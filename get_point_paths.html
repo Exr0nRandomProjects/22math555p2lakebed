@@ -29,7 +29,7 @@
         }
 
 
-        DISTANCE = 5
+        DISTANCE = 2
         svg_el = document.getElementById('contour_lines')
         els = Array.from(svg_el.children)
         console.log(els)
@@ -46,14 +46,14 @@
 
         lines.sort((l, r) => r.length - l.length)
 
-        lines[18].forEach(([x, y, color]) => circle(x, y, color, radius=4))
+        //lines[18].forEach(([x, y, color]) => circle(x, y, color, radius=4))
 
         lines.forEach(line => line.forEach(([x, y, color]) => circle(x, y, color)));
         circles.forEach(([x, y]) => circle(x, y, color='blue', radius=3))
 
         lines = lines.map(line => line.map(([x, y, c]) => [x, y]))
 
-        //console.log(JSON.stringify(lines))
+        console.log(JSON.stringify(lines[0]))
         //console.log(JSON.stringify(circles))
     </script>
 </html>
