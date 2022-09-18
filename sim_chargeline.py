@@ -44,11 +44,11 @@ class ChargeLine:
 def distance(p1: Point, p2: Point):
     return np.linalg.norm(p1.old_pos - p2.old_pos)
 @njit
-def inter_line_charge(c, d): return 1 * c / max(d, 1)**2
+def inter_line_charge(c, d): return 3 * c / max(d, 1)**2
 # @njit
 # def intra_line_charge(c, d): return c/1.5**d
 
-STRAIGHTNESS_FORCE = 0.01
+STRAIGHTNESS_FORCE = 0.1
 CHARGE_FORCE_MAX = 100
 
 plt.style.use('dark_background')
@@ -100,7 +100,7 @@ def update_points_verlet(charge_lines):
                     if not p1.pinned:
                         p1.pos -= force * direction; p1.tot_vel += np.linalg.norm(force * direction)
                     if not p2.pinned:
-                        p2.pos -= force * direction; p2.tot_vel += np.linalg.norm(force * direction)
+                        p2.pos += force * direction; p2.tot_vel += np.linalg.norm(force * direction)
 
         # @njit
         # def intra_line_force(points, charge):
