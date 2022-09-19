@@ -1,16 +1,19 @@
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib import tri
 from tqdm import trange, tqdm
 import numpy as np
 from numba import njit, vectorize
 from numba.typed import List
 import numba as nb
+from stl import mesh
 
 from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges, lines_sequences, points_to_pin
 
 from itertools import combinations, product
 from dataclasses import dataclass
 import math
+from datetime import datetime
 from operator import itemgetter as ig
 
 @dataclass(eq=False)
@@ -50,6 +53,7 @@ def inter_line_charge(c, d): return 3 * c / max(d, 1)**2
 
 STRAIGHTNESS_FORCE = 0.2
 CHARGE_FORCE_MAX = 100
+N_MESH_INTERPOLATIONS = 1
 
 plt.style.use('dark_background')
 
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     print("hello world")
 
 
-    plt_curves = [ vis_ax.plot([], [], marker='o', label=f"{cl.depth}: {cl.charge}")[0] for cl in INITIAL_CHARGE_LINES ]
+    plt_curves = [ vis_ax.plot([], [], marker='o', label=f"d={cl.depth}, c={cl.charge:.2f}")[0] for cl in INITIAL_CHARGE_LINES ]
     vis_ax.legend()
 
     vis_ax.set_xlim(-10, 600)
@@ -206,7 +210,35 @@ if __name__ == '__main__':
 
     ani = FuncAnimation(fig, animate, fargs=[plt_curves, INITIAL_CHARGE_LINES], frames=trange(int(1e5)), interval=100, blit=False)
 
-
-
     plt.show()
+
+
+    # time to meshify
+    flattened_points = np.array([(p.pos[0], p.pos[1], line.depth) for line in INITIAL_CHARGE_LINES for p in line.points])
+
+    print(flattened_points)
+    print(flattened_points.shape)
+
+    triangulation = tri.Triangulation(flattened_points[:,0], flattened_points[:,1])
+    z_vals = flattened_points[:,2]
+    print(triangulation.triangles)
+
+    print(triangulation)
+
+    # interpolation is cringe
+    # triangulation, z_vals = tri.UniformTriRefiner(triangulation).refine_field(z_vals, tri.CubicTriInterpolator(triangulation, z_vals), subdiv=N_MESH_INTERPOLATIONS)
+
+
+    faces = triangulation.triangles
+    vertices = np.stack([triangulation.x, triangulation.y, z_vals]).T
+    print(vertices.shape)
+# Create the mesh
+    lakebed_mesh = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+    for i, f in enumerate(faces):
+        for j in range(3):
+            lakebed_mesh.vectors[i][j] = vertices[f[j],:]
+
+# Write the mesh to file "cube.stl"
+    lakebed_mesh.save(f"lakebed_{datetime.now()}.stl")
+
 

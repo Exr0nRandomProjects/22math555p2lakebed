@@ -8,13 +8,34 @@ lines = [[[538.374231338501,145.6221160888672],[538.607629776001,147.60835266113
 MAXIMUM_Y  = 480
 
 
-lines = [[(x, MAXIMUM_Y-y) for x, y in l] for l in lines]
+lines = [[(x+25, MAXIMUM_Y-y) for x, y in l] for l in lines]
 
 depth = [
         0, 10, 20, 30, 40, 50, 60, 70, 80, 20, 100, 30, 40, 110, 50, 60, 70, 120, 80
         ]
 
-charges = [ 0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+charge_mapper = {
+    0  : 7.47300783992,
+    10 : 5.46652110132,
+    20 : 3.77684547648,
+    30 : 2.43221967232,
+    40 : 1.47709448729,
+    50 : 1.00809537243,
+    60 : 1.46617857036,
+    70 : 2.14278785297,
+    80 : 2.89818655017,
+    90 : 3.7085622593 ,
+    100: 4.56202194198,
+    110: 4.02941176471,
+    120: 3.44117647059,
+    130: 2.85294117647,
+}
+charge_mapper[0] /= 2   # divide charge for outer border bc it has more points per unit distance
+max_charge = max(charge_mapper.values()); charge_mapper = { k: 1.5*v/max_charge for k, v in charge_mapper.items() }  # normalize the charges so that the max is one
+print(charge_mapper)
+
+# charges = [ 0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+charges = [charge_mapper[d] for d in depth]
 
 from numba.typed import List
 lines_sequences = [ List([ 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 17 ]), List([0, 1, 9, 11, 12, 14, 15, 16, 18 ]), List([ 2, 9 ]) ]
@@ -24,7 +45,7 @@ assert len(depth) == len(lines)
 assert len(charges) == len(lines)
 
 points = [[352.0799865722656, 330.7699890136719,100],[239.89999389648438, 175.86000061035156,20],[445.04998779296875,165.9499969482422, 50],[258.0400085449219,290.2099914550781,100],[187.92999267578125,111.79000091552734,80],[320.2799987792969,181.80999755859375,100]]
-points = [(x, MAXIMUM_Y-y, z) for x, y, z in points]
+points = [(x+25, MAXIMUM_Y-y, z) for x, y, z in points]
 
 points_to_pin = []
 
