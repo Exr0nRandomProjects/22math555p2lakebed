@@ -8,7 +8,7 @@ from numba.typed import List
 import numba as nb
 from stl import mesh
 
-from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges, lines_sequences, points_to_pin
+from lines import lines as data_lines, points as data_points, depth as data_depth, charges as data_charges, lines_sequences, points_to_pin, MAXIMUM_Y
 
 from itertools import combinations, product
 from dataclasses import dataclass
@@ -179,7 +179,7 @@ def animate(step, line_plots, charge_lines):
 
     for line, cl in zip(line_plots, charge_lines):
         line.set_xdata([p.pos[0] for p in cl.points] + [cl.points[0].pos[0]])
-        line.set_ydata([p.pos[1] for p in cl.points] + [cl.points[0].pos[1]])
+        line.set_ydata([MAXIMUM_Y-p.pos[1] for p in cl.points] + [MAXIMUM_Y-cl.points[0].pos[1]])
 
     vels = [np.linalg.norm(p.pos - p.old_pos) for cl in charge_lines for p in cl.points]
     tot_vels = [p.tot_vel for cl in charge_lines for p in cl.points]
@@ -215,6 +215,7 @@ if __name__ == '__main__':
 
     # time to meshify
     flattened_points = np.array([(p.pos[0], p.pos[1], line.depth) for line in INITIAL_CHARGE_LINES for p in line.points])
+    flattened_points = np.vstack([flattened_points, np.array([[0, 0, 0], [0, 500, 0],  [600, 500, 0], [600, 0, 0]])])
 
     print(flattened_points)
     print(flattened_points.shape)
